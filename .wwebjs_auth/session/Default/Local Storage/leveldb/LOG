@@ -1,6 +1,0 @@
-2026/06/29-16:48:21.283 3598 Reusing MANIFEST C:\Users\DELL\Desktop\status\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
-2026/06/29-16:48:21.310 3598 Recovering log #3
-2026/06/29-16:48:21.316 3598 Reusing old log C:\Users\DELL\Desktop\status\.wwebjs_auth\session\Default\Local Storage\leveldb/000003.log 
-2026/06/29-16:50:21.911 1db4 Level-0 table #5: started
-2026/06/29-16:50:21.926 1db4 Level-0 table #5: 18155 bytes OK
-2026/06/29-16:50:21.931 1db4 Delete type=0 #3
