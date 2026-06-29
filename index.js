@@ -48,6 +48,18 @@ client.on('ready', () => {
     lastQR = '';
 });
 
+client.on('authenticated', () => {
+    console.log('✅ Authenticated');
+});
+
+client.on('loading_screen', (percent, message) => {
+    console.log(`Loading ${percent}% - ${message}`);
+});
+
+client.on('change_state', (state) => {
+    console.log('State:', state);
+});
+
 client.on('auth_failure', (msg) => {
     console.error('Auth failed:', msg);
     isClientReady = false;
