@@ -1,12 +1,27 @@
 const express = require('express');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const { join } = require('path');
 
 const app = express();
 app.use(express.json());
 
 const client = new Client({
-    authStrategy: new LocalAuth()
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        headless: true,
+        executablePath: join(__dirname, '.cache', 'puppeteer', 'chrome', 'linux-146.0.7680.31', 'chrome-linux64', 'chrome'),
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-gpu'
+        ]
+    }
 });
 
 let isClientReady = false;
@@ -21,15 +36,23 @@ client.on('ready', () => {
     isClientReady = true;
 });
 
+client.on('auth_failure', (msg) => {
+    console.error('Auth failed:', msg);
+});
+
+client.on('disconnected', (reason) => {
+    console.log('Client disconnected:', reason);
+    isClientReady = false;
+});
+
 client.initialize();
 
 // ========================================
-// MESSAGE TEMPLATES - har trigger ke liye
+// MESSAGE TEMPLATES
 // ========================================
 
 const messageTemplates = {
 
-    // 1. Documents upload hue
     DocUpload: (name, docListArr) => {
         let docListText = '';
         if (Array.isArray(docListArr) && docListArr.length > 0) {
@@ -40,23 +63,18 @@ const messageTemplates = {
         return `Dear ${name},\nThank you! We have received the following documents from you:\n\n${docListText}\n\nOur team will review them and contact you if any additional information is required.\n\nWarm regards,\nTeam ITR, Rishabh Raja & Co.`;
     },
 
-    // 2. Reminder - koi document upload nahi hua
     Reminder: (name) =>
         `Dear ${name},\nThis is a gentle reminder that we have not yet received your documents. Please upload them at your earliest convenience so we can proceed with your ITR filing.\n\nWarm regards,\nTeam ITR, Rishabh Raja & Co.`,
 
-    // 3. Discussion stage
     Discussion: (name) =>
         `Dear ${name},\nWe have reviewed your data and would like to discuss a few points with you regarding your ITR. Our team will be in touch with you shortly.\n\nWarm regards,\nTeam ITR, Rishabh Raja & Co.`,
 
-    // 4. Confirmation stage (with draft file attached)
     Confirmation: (name) =>
         `Dear ${name},\nPlease find attached the draft of your ITR for review. Kindly go through it and confirm so we can proceed with the final filing.\n\nWarm regards,\nTeam ITR, Rishabh Raja & Co.`,
 
-    // 5. Billing stage
     Billing: (name) =>
         `Dear ${name},\nYour ITR filing process is complete on our end. Please find the billing details shared separately. Kindly process the payment at your earliest convenience.\n\nWarm regards,\nTeam ITR, Rishabh Raja & Co.`,
 
-    // 6. Filed - final stage
     Filed: (name) =>
         `Dear ${name},\nWe are pleased to inform you that your Income Tax Return has been successfully filed. Thank you for your cooperation throughout the process.\n\nWarm regards,\nTeam ITR, Rishabh Raja & Co.`
 };
@@ -64,8 +82,6 @@ const messageTemplates = {
 // ========================================
 // MAIN API ENDPOINT
 // ========================================
-// Zoho Creator yahan POST request bhejega with:
-// { "Name": "...", "Phone_Number": "...", "Trigger": "DocUpload" / "Reminder" / "Discussion" / "Confirmation" / "Billing" / "Filed", "FileURL": "..." (optional, only for Confirmation) }
 
 app.post('/send-whatsapp', async (req, res) => {
     try {
@@ -97,7 +113,6 @@ app.post('/send-whatsapp', async (req, res) => {
             return res.status(404).json({ success: false, error: `${number} WhatsApp pe registered nahi hai` });
         }
 
-        // Agar Confirmation trigger hai aur file URL diya gaya hai, to file ke saath message bhejo
         if (Trigger === 'Confirmation' && FileURL) {
             try {
                 const media = await MessageMedia.fromUrl(FileURL, { unsafeMime: true });
@@ -120,7 +135,7 @@ app.post('/send-whatsapp', async (req, res) => {
     }
 });
 
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', whatsappReady: isClientReady });
 });
