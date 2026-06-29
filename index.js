@@ -1,6 +1,7 @@
 const express = require('express');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const { join } = require('path');
 
 const app = express();
@@ -15,29 +16,41 @@ const client = new Client({
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
             '--no-first-run',
             '--no-zygote',
-            '--single-process',
-            '--disable-gpu'
+            '--disable-extensions',
+            '--disable-background-networking',
+            '--disable-default-apps',
+            '--disable-sync',
+            '--disable-translate',
+            '--hide-scrollbars',
+            '--metrics-recording-only',
+            '--mute-audio',
+            '--safebrowsing-disable-auto-update',
+            '--js-flags=--max-old-space-size=512'
         ]
     }
 });
 
 let isClientReady = false;
+let lastQR = '';
 
-client.on('qr', (qr) => {
+client.on('qr', async (qr) => {
     qrcode.generate(qr, { small: true });
     console.log('QR scan karo WhatsApp > Linked Devices se');
+    lastQR = await QRCode.toDataURL(qr);
 });
 
 client.on('ready', () => {
-    console.log('WhatsApp Client ready! Server requests accept karne ke liye taiyaar hai.');
+    console.log('WhatsApp Client ready!');
     isClientReady = true;
+    lastQR = '';
 });
 
 client.on('auth_failure', (msg) => {
     console.error('Auth failed:', msg);
+    isClientReady = false;
 });
 
 client.on('disconnected', (reason) => {
@@ -138,6 +151,17 @@ app.post('/send-whatsapp', async (req, res) => {
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', whatsappReady: isClientReady });
+});
+
+// QR Code browser endpoint
+app.get('/qr', (req, res) => {
+    if (isClientReady) {
+        return res.send('<h2>✅ WhatsApp Connected hai!</h2>');
+    }
+    if (!lastQR) {
+        return res.send('<h2>QR abhi ready nahi, 15 sec baad refresh karo</h2><script>setTimeout(()=>location.reload(),15000)</script>');
+    }
+    res.send(`<html><body style="text-align:center;font-family:sans-serif"><h2>WhatsApp QR Code Scan Karo</h2><img src="${lastQR}" style="width:300px"/><p>QR 25 sec mein expire hoga, page auto-refresh hoga</p><script>setTimeout(()=>location.reload(),25000)</script></body></html>`);
 });
 
 const PORT = 3000;
